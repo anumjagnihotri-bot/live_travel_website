@@ -35,7 +35,7 @@ def fetch_city_data_live(city_name, category="tourism.attraction"):
         # Step 2: Get nearby places based on category
         places_url = (
             f"https://api.geoapify.com/v2/places?categories={category}"
-            f"&filter=circle:{lon},{lat},5000"
+            f"&filter=circle:{lon},{lat},25000"
             f"&limit=20&apiKey={api_key}"
         )
 
@@ -111,7 +111,7 @@ HTML_TEMPLATE = """
             <option value="catering.cafe" {% if category == 'catering.cafe' %}selected{% endif %}>Cafes</option>
             <option value="catering.restaurant" {% if category == 'catering.restaurant' %}selected{% endif %}>Restaurants</option>
             <option value="healthcare.hospital" {% if category == 'healthcare.hospital' %}selected{% endif %}>Hospitals</option>
-        </select>
+            </select>
 
         <button type="submit">Search</button>
     </form>
