@@ -12,16 +12,18 @@ app = Flask(__name__)
 CORS(app)
 
 
-def fetch_city_data_live(city_name):
+def fetch_city_data_live(city_name, category="tourism.attraction"):
     places = []
 
     try:
         api_key = "2f216ba3bd304e0ab20e594df5d49186"
 
         # Step 1: Get city coordinates
-        geo_url = f"https://api.geoapify.com/v1/geocode/search?text={quote(city_name)}&limit=1&apiKey={api_key}"
-        geo_res = requests.get(geo_url, timeout=10)
+        geo_url = (
+            f"https://api.geoapify.com/v1/geocode/search?text={quote(city_name)}&limit=1&apiKey={api_key}"
+        )
 
+        geo_res = requests.get(geo_url, timeout=10)
         data = geo_res.json()
         features = data.get("features", [])
 
@@ -30,9 +32,9 @@ def fetch_city_data_live(city_name):
 
         lon, lat = features[0]["geometry"]["coordinates"]
 
-        # Step 2: Get nearby tourist attractions only
+        # Step 2: Get nearby places based on category
         places_url = (
-            f"https://api.geoapify.com/v2/places?categories=tourism.attraction"
+            f"https://api.geoapify.com/v2/places?categories={category}"
             f"&filter=circle:{lon},{lat},5000"
             f"&limit=20&apiKey={api_key}"
         )
@@ -47,13 +49,11 @@ def fetch_city_data_live(city_name):
             if name:
                 places.append({
                     "name": name,
-                    "place_type": "attraction"
+                    "place_type": category
                 })
 
     except Exception as e:
         print("ERROR:", e)
-
-    return places
 
     return places
 
@@ -64,7 +64,7 @@ HTML_TEMPLATE = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Live India Travel Finder</title>
+    <title>Live India Places Finder</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -72,9 +72,10 @@ HTML_TEMPLATE = """
             text-align: center;
             padding: 40px;
         }
-        input {
+        input, select {
             padding: 10px;
-            width: 280px;
+            width: 250px;
+            margin: 5px;
         }
         button {
             padding: 10px 18px;
@@ -100,10 +101,18 @@ HTML_TEMPLATE = """
 </head>
 <body>
 
-    <h1>Live India Travel Finder</h1>
+    <h1>Live India Places Finder</h1>
 
     <form method="GET" action="/">
         <input type="text" name="city" placeholder="Enter city" value="{{ city }}">
+
+        <select name="category">
+            <option value="tourism.attraction" {% if category == 'tourism.attraction' %}selected{% endif %}>Tourist Attractions</option>
+            <option value="catering.cafe" {% if category == 'catering.cafe' %}selected{% endif %}>Cafes</option>
+            <option value="catering.restaurant" {% if category == 'catering.restaurant' %}selected{% endif %}>Restaurants</option>
+            <option value="healthcare.hospital" {% if category == 'healthcare.hospital' %}selected{% endif %}>Hospitals</option>
+        </select>
+
         <button type="submit">Search</button>
     </form>
 
@@ -128,24 +137,36 @@ HTML_TEMPLATE = """
 @app.route("/")
 def home():
     city = request.args.get("city", "").strip()
-    places = fetch_city_data_live(city) if city else []
-    return render_template_string(HTML_TEMPLATE, city=city, places=places)
+    category = request.args.get("category", "tourism.attraction")
+
+    places = fetch_city_data_live(city, category) if city else []
+
+    return render_template_string(
+        HTML_TEMPLATE,
+        city=city,
+        category=category,
+        places=places
+    )
 
 
-@app.route("/api/travel", methods=["GET", "POST"])
-def api_travel():
+# API endpoint changed from /api/travel to /api/places
+@app.route("/api/places", methods=["GET", "POST"])
+def api_places():
     city = request.args.get("city")
+    category = request.args.get("category", "tourism.attraction")
 
     if not city and request.is_json:
         city = request.json.get("city")
+        category = request.json.get("category", "tourism.attraction")
 
     if not city:
         city = "Mumbai"
 
-    spots = fetch_city_data_live(city)
+    spots = fetch_city_data_live(city, category)
 
     return jsonify({
         "city": city,
+        "category": category,
         "spots": spots
     })
 
