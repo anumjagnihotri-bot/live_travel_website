@@ -35,7 +35,7 @@ def fetch_city_data_live(city_name, category="tourism.attraction"):
         # Step 2: Get nearby places based on category
         places_url = (
             f"https://api.geoapify.com/v2/places?categories={category}"
-            f"&filter=circle:{lon},{lat},25000"
+            f"&filter=circle:{lon},{lat},20000"
             f"&limit=20&apiKey={api_key}"
         )
 
