@@ -12,6 +12,7 @@ def fetch_city_data_live(city_name):
     try:
         api_key = "2f216ba3bd304e0ab20e594df5d49186"
         
+        # 1. Get coordinates for the city
         geo_url = f"https://api.geoapify.com/v1/geocode/search?text={quote(city_name)}&apiKey={api_key}"
         geo_res = requests.get(geo_url, timeout=10)
         
@@ -21,20 +22,47 @@ def fetch_city_data_live(city_name):
                 coords = features[0]["geometry"]["coordinates"]
                 lon, lat = coords[0], coords[1]
                 
-                places_url = f"https://api.geoapify.com/v2/places?categories=tourism.attraction&filter=circle:{lon},{lat},10000&limit=20&apiKey={api_key}"
+                # 2. Fetch all requested categories near those coordinates
+                categories_list = (
+                    "tourism.attraction,"
+                    "catering.restaurant,"
+                    "catering.cafe,"
+                    "healthcare.hospital,"
+                    "healthcare.pharmacy,"
+                    "public_transit.bus,"
+                    "leisure.park"
+                )
+                
+                places_url = f"https://api.geoapify.com/v2/places?categories={categories_list}&filter=circle:{lon},{lat},10000&limit=50&apiKey={api_key}"
                 p_res = requests.get(places_url, timeout=10)
                 
                 if p_res.status_code == 200:
                     for item in p_res.json().get("features", []):
                         props = item.get("properties", {})
                         name = props.get("name")
+                        cats = props.get("categories", [])
+                        
                         if name:
-                            places.append({"name": name, "place_type": "attraction"})
+                            # Assign the correct place_type based on Geoapify categories
+                            place_type = "attraction"
+                            if any("catering.restaurant" in c for c in cats):
+                                place_type = "restaurant"
+                            elif any("catering.cafe" in c for c in cats):
+                                place_type = "cafe"
+                            elif any("healthcare.hospital" in c for c in cats):
+                                place_type = "hospital"
+                            elif any("healthcare.pharmacy" in c for c in cats):
+                                place_type = "medical"
+                            elif any("public_transit.bus" in c for c in cats):
+                                place_type = "bus stop"
+                            elif any("leisure.park" in c for c in cats):
+                                place_type = "park"
+                                
+                            places.append({"name": name, "place_type": place_type})
     except Exception as e:
         print(f"Error: {e}")
         
-    return places
-
+    return places   
 HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="en">
