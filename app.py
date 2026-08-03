@@ -45,12 +45,18 @@ def fetch_city_data_live(city_name, category="tourism.attraction"):
         for item in pdata.get("features", []):
             props = item.get("properties", {})
             name = props.get("name")
-
+            address = props.get("formatted")
+            lat = props.get("lat")
+            lon = props.get("lon")
+            
             if name:
-                places.append({
-                    "name": name,
-                    "place_type": category
-                })
+              places.append({
+              "name": name,
+              "place_type": category,
+              "address": address,
+              "lat": lat,
+              "lon": lon
+       })
 
     except Exception as e:
         print("ERROR:", e)
