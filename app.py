@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
-app = Flask(_name_)
+app = Flask(__name__)
 CORS(app)
 
 
@@ -18,9 +18,9 @@ def fetch_city_data_live(city_name, category="tourism.attraction"):
     try:
         api_key = "2f216ba3bd304e0ab20e594df5d49186"
 
-        # Step 1: Get city coordinates
+        # Step 1: Get city coordinates (English)
         geo_url = (
-            f"https://api.geoapify.com/v1/geocode/search?text={quote(city_name)}&limit=1&apiKey={api_key}"
+            f"https://api.geoapify.com/v1/geocode/search?text={quote(city_name)}&limit=1&lang=en&apiKey={api_key}"
         )
 
         geo_res = requests.get(geo_url, timeout=10)
@@ -32,11 +32,11 @@ def fetch_city_data_live(city_name, category="tourism.attraction"):
 
         lon, lat = features[0]["geometry"]["coordinates"]
 
-        # Step 2: Get nearby places based on category
+        # Step 2: Get nearby places based on category (English)
         places_url = (
             f"https://api.geoapify.com/v2/places?categories={category}"
             f"&filter=circle:{lon},{lat},20000"
-            f"&limit=20&apiKey={api_key}"
+            f"&limit=20&lang=en&apiKey={api_key}"
         )
 
         p_res = requests.get(places_url, timeout=10)
@@ -46,17 +46,17 @@ def fetch_city_data_live(city_name, category="tourism.attraction"):
             props = item.get("properties", {})
             name = props.get("name")
             address = props.get("formatted")
-            lat = props.get("lat")
-            lon = props.get("lon")
-            
+            plat = props.get("lat")
+            plon = props.get("lon")
+
             if name:
-              places.append({
-              "name": name,
-              "place_type": category,
-              "address": address,
-              "lat": lat,
-              "lon": lon
-       })
+                places.append({
+                    "name": name,
+                    "place_type": category,
+                    "address": address,
+                    "lat": plat,
+                    "lon": plon
+                })
 
     except Exception as e:
         print("ERROR:", e)
@@ -117,7 +117,7 @@ HTML_TEMPLATE = """
             <option value="catering.cafe" {% if category == 'catering.cafe' %}selected{% endif %}>Cafes</option>
             <option value="catering.restaurant" {% if category == 'catering.restaurant' %}selected{% endif %}>Restaurants</option>
             <option value="healthcare.hospital" {% if category == 'healthcare.hospital' %}selected{% endif %}>Hospitals</option>
-            </select>
+        </select>
 
         <button type="submit">Search</button>
     </form>
@@ -155,7 +155,7 @@ def home():
     )
 
 
-# API endpoint changed from /api/travel to /api/places
+# API endpoint
 @app.route("/api/places", methods=["GET", "POST"])
 def api_places():
     city = request.args.get("city")
@@ -177,85 +177,8 @@ def api_places():
     })
 
 
-if _name_ == "_main_":
-    app.run(debug=True, port=5000) 
-    #end of code
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+if __name__ == "__main__":
+    app.run(debug=True, port=5000)
 
 
 
