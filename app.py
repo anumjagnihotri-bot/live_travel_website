@@ -16,11 +16,11 @@ def fetch_city_data_live(city_name, category="tourism.attraction"):
     places = []
 
     try:
-        api_key = "2f216ba3bd304e0ab20e594df5d49186"
+        api_key = "YOUR_GEOAPIFY_API_KEY"
 
-        # Step 1: Get city coordinates
+        # Step 1: Get city coordinates (in English)
         geo_url = (
-            f"https://api.geoapify.com/v1/geocode/search?text={quote(city_name)}&limit=1&apiKey={api_key}"
+            f"https://api.geoapify.com/v1/geocode/search?text={quote(city_name)}&limit=1&lang=en&apiKey={api_key}"
         )
 
         geo_res = requests.get(geo_url, timeout=10)
@@ -32,11 +32,11 @@ def fetch_city_data_live(city_name, category="tourism.attraction"):
 
         lon, lat = features[0]["geometry"]["coordinates"]
 
-        # Step 2: Get nearby places based on category
+        # Step 2: Get nearby places based on category (in English)
         places_url = (
             f"https://api.geoapify.com/v2/places?categories={category}"
             f"&filter=circle:{lon},{lat},20000"
-            f"&limit=20&apiKey={api_key}"
+            f"&limit=20&lang=en&apiKey={api_key}"
         )
 
         p_res = requests.get(places_url, timeout=10)
@@ -48,15 +48,15 @@ def fetch_city_data_live(city_name, category="tourism.attraction"):
             address = props.get("formatted")
             lat = props.get("lat")
             lon = props.get("lon")
-            
+
             if name:
-              places.append({
-              "name": name,
-              "place_type": category,
-              "address": address,
-              "lat": lat,
-              "lon": lon
-       })
+                places.append({
+                    "name": name,
+                    "place_type": category,
+                    "address": address,
+                    "lat": lat,
+                    "lon": lon
+                })
 
     except Exception as e:
         print("ERROR:", e)
@@ -93,21 +93,26 @@ HTML_TEMPLATE = """
         ul {
             list-style: none;
             padding: 0;
-            max-width: 500px;
+            max-width: 600px;
             margin: 20px auto;
             text-align: left;
         }
         li {
             background: white;
-            margin-bottom: 8px;
-            padding: 10px;
+            margin-bottom: 10px;
+            padding: 12px;
             border-radius: 6px;
+        }
+        .address {
+            color: #555;
+            font-size: 14px;
+            margin-top: 4px;
         }
     </style>
 </head>
 <body>
 
-    <h1>Live India Places Finder</h1>
+    <h1>Live Places Finder (English Results)</h1>
 
     <form method="GET" action="/">
         <input type="text" name="city" placeholder="Enter city" value="{{ city }}">
@@ -117,7 +122,7 @@ HTML_TEMPLATE = """
             <option value="catering.cafe" {% if category == 'catering.cafe' %}selected{% endif %}>Cafes</option>
             <option value="catering.restaurant" {% if category == 'catering.restaurant' %}selected{% endif %}>Restaurants</option>
             <option value="healthcare.hospital" {% if category == 'healthcare.hospital' %}selected{% endif %}>Hospitals</option>
-            </select>
+        </select>
 
         <button type="submit">Search</button>
     </form>
@@ -127,7 +132,8 @@ HTML_TEMPLATE = """
         <ul>
             {% for place in places %}
                 <li>
-                    <b>{{ place.name }}</b> ({{ place.place_type }})
+                    <b>{{ place.name }}</b> ({{ place.place_type }})<br>
+                    <div class="address">{{ place.address }}</div>
                 </li>
             {% endfor %}
         </ul>
@@ -155,7 +161,7 @@ def home():
     )
 
 
-# API endpoint changed from /api/travel to /api/places
+# API endpoint
 @app.route("/api/places", methods=["GET", "POST"])
 def api_places():
     city = request.args.get("city")
@@ -173,10 +179,10 @@ def api_places():
     return jsonify({
         "city": city,
         "category": category,
+        "language": "en",
         "spots": spots
     })
 
 
 if __name__ == "__main__":
-    app.run(debug=True, port=5000) 
-    #end of code
+    app.run(debug=True, port=5000)
