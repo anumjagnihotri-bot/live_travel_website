@@ -4,6 +4,7 @@ from flask import Flask, request, jsonify, render_template_string
 from flask_cors import CORS
 from urllib.parse import quote
 from dotenv import load_dotenv
+from deep_translator import GoogleTranslator
 
 # Load environment variables
 load_dotenv()
@@ -32,7 +33,7 @@ def fetch_city_data_live(city_name, category="tourism.attraction"):
 
         lon, lat = features[0]["geometry"]["coordinates"]
 
-        # Step 2: Get nearby places based on category (English)
+        # Step 2: Get nearby places
         places_url = (
             f"https://api.geoapify.com/v2/places?categories={category}"
             f"&filter=circle:{lon},{lat},20000"
@@ -44,14 +45,24 @@ def fetch_city_data_live(city_name, category="tourism.attraction"):
 
         for item in pdata.get("features", []):
             props = item.get("properties", {})
+
             name = props.get("name")
             address = props.get("formatted")
             plat = props.get("lat")
             plon = props.get("lon")
 
+            # Translate name to English if needed
             if name:
+                try:
+                    translated_name = GoogleTranslator(
+                        source="auto", target="en"
+                    ).translate(name)
+                except:
+                    translated_name = name
+
                 places.append({
-                    "name": name,
+                    "name": translated_name,
+                    "original_name": name,
                     "place_type": category,
                     "address": address,
                     "lat": plat,
@@ -100,8 +111,11 @@ HTML_TEMPLATE = """
         li {
             background: white;
             margin-bottom: 8px;
-            padding: 10px;
+            padding: 12px;
             border-radius: 6px;
+        }
+        small {
+            color: #666;
         }
     </style>
 </head>
@@ -127,7 +141,13 @@ HTML_TEMPLATE = """
         <ul>
             {% for place in places %}
                 <li>
-                    <b>{{ place.name }}</b> ({{ place.place_type }})
+                    <b>{{ place.name }}</b>
+
+                    {% if place.original_name != place.name %}
+                        <br><small>Original: {{ place.original_name }}</small>
+                    {% endif %}
+
+                    <br>({{ place.place_type }})
                 </li>
             {% endfor %}
         </ul>
@@ -179,28 +199,6 @@ def api_places():
 
 if __name__ == "__main__":
     app.run(debug=True, port=5000)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
