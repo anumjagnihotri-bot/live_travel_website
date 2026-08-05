@@ -13,32 +13,29 @@ CORS(app)
 
 
 def fetch_city_data_live(city_name, category="tourism.attraction"):
+    """Fetch places around a city using Geoapify APIs."""
     places = []
-
     try:
-        api_key = "YOUR_GEOAPIFY_API_KEY"
+        api_key = "2f216ba3bd304e0ab20e594df5d49186"
 
-        # Step 1: Get city coordinates (in English)
+        # Step 1: Get city coordinates
         geo_url = (
-            f"https://api.geoapify.com/v1/geocode/search?text={quote(city_name)}&limit=1&lang=en&apiKey={api_key}"
+            f"https://api.geoapify.com/v1/geocode/search?text={quote(city_name)}&limit=1&apiKey={api_key}"
         )
-
         geo_res = requests.get(geo_url, timeout=10)
         data = geo_res.json()
         features = data.get("features", [])
-
         if not features:
             return []
 
         lon, lat = features[0]["geometry"]["coordinates"]
 
-        # Step 2: Get nearby places based on category (in English)
+        # Step 2: Get nearby places based on category
         places_url = (
             f"https://api.geoapify.com/v2/places?categories={category}"
             f"&filter=circle:{lon},{lat},20000"
-            f"&limit=20&lang=en&apiKey={api_key}"
+            f"&limit=20&apiKey={api_key}"
         )
-
         p_res = requests.get(places_url, timeout=10)
         pdata = p_res.json()
 
@@ -46,18 +43,18 @@ def fetch_city_data_live(city_name, category="tourism.attraction"):
             props = item.get("properties", {})
             name = props.get("name")
             address = props.get("formatted")
-            lat = props.get("lat")
-            lon = props.get("lon")
-
+            plat = props.get("lat")
+            plon = props.get("lon")
             if name:
-                places.append({
-                    "name": name,
-                    "place_type": category,
-                    "address": address,
-                    "lat": lat,
-                    "lon": lon
-                })
-
+                places.append(
+                    {
+                        "name": name,
+                        "place_type": category,
+                        "address": address,
+                        "lat": plat,
+                        "lon": plon,
+                    }
+                )
     except Exception as e:
         print("ERROR:", e)
 
@@ -68,121 +65,85 @@ HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Live India Places Finder</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background: #f5f7fa;
-            text-align: center;
-            padding: 40px;
-        }
-        input, select {
-            padding: 10px;
-            width: 250px;
-            margin: 5px;
-        }
-        button {
-            padding: 10px 18px;
-            background: #007bff;
-            color: white;
-            border: none;
-            cursor: pointer;
-        }
-        ul {
-            list-style: none;
-            padding: 0;
-            max-width: 600px;
-            margin: 20px auto;
-            text-align: left;
-        }
-        li {
-            background: white;
-            margin-bottom: 10px;
-            padding: 12px;
-            border-radius: 6px;
-        }
-        .address {
-            color: #555;
-            font-size: 14px;
-            margin-top: 4px;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Live India Places Finder</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f5f7fa; text-align: center; padding: 40px; }
+    input, select { padding: 10px; width: 250px; margin: 5px; }
+    button { padding: 10px 18px; background: #007bff; color: white; border: none; cursor: pointer; }
+    ul { list-style: none; padding: 0; max-width: 600px; margin: 20px auto; text-align: left; }
+    li { background: white; margin-bottom: 8px; padding: 10px; border-radius: 6px; }
+  </style>
 </head>
 <body>
+  <h1>Live India Places Finder</h1>
+  <form id="searchForm">
+    <input type="text" name="city" id="city" placeholder="Enter city name" required />
+    <select name="category" id="category">
+      <option value="tourism.attraction">Attractions</option>
+      <option value="accommodation.hotel">Hotels</option>
+      <option value="food_and_drink">Food & Drink</option>
+      <option value="shopping">Shopping</option>
+    </select>
+    <button type="submit">Search</button>
+  </form>
 
-    <h1>Live Places Finder (English Results)</h1>
+  <ul id="results"></ul>
 
-    <form method="GET" action="/">
-        <input type="text" name="city" placeholder="Enter city" value="{{ city }}">
+  <script>
+    const form = document.getElementById('searchForm');
+    const results = document.getElementById('results');
 
-        <select name="category">
-            <option value="tourism.attraction" {% if category == 'tourism.attraction' %}selected{% endif %}>Tourist Attractions</option>
-            <option value="catering.cafe" {% if category == 'catering.cafe' %}selected{% endif %}>Cafes</option>
-            <option value="catering.restaurant" {% if category == 'catering.restaurant' %}selected{% endif %}>Restaurants</option>
-            <option value="healthcare.hospital" {% if category == 'healthcare.hospital' %}selected{% endif %}>Hospitals</option>
-        </select>
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      results.innerHTML = '<li>Searching...</li>';
+      const city = document.getElementById('city').value;
+      const category = document.getElementById('category').value;
 
-        <button type="submit">Search</button>
-    </form>
+      try {
+        const res = await fetch('/search', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ city, category }),
+        });
+        const data = await res.json();
+        if (!Array.isArray(data) || data.length === 0) {
+          results.innerHTML = '<li>No results found.</li>';
+          return;
+        }
 
-    {% if places %}
-        <h2>Results for {{ city }}</h2>
-        <ul>
-            {% for place in places %}
-                <li>
-                    <b>{{ place.name }}</b> ({{ place.place_type }})<br>
-                    <div class="address">{{ place.address }}</div>
-                </li>
-            {% endfor %}
-        </ul>
-    {% elif city %}
-        <p>No places found for "{{ city }}"</p>
-    {% endif %}
-
+        results.innerHTML = data
+          .map(item => `\n            <li>\n              <strong>${item.name}</strong>\n              <div>${item.address || ''}</div>\n            </li>\n          `)
+          .join('');
+      } catch (err) {
+        results.innerHTML = '<li>Error fetching results.</li>';
+        console.error(err);
+      }
+    });
+  </script>
 </body>
 </html>
 """
 
 
-@app.route("/")
-def home():
-    city = request.args.get("city", "").strip()
-    category = request.args.get("category", "tourism.attraction")
-
-    places = fetch_city_data_live(city, category) if city else []
-
-    return render_template_string(
-        HTML_TEMPLATE,
-        city=city,
-        category=category,
-        places=places
-    )
+@app.route('/')
+def index():
+    return render_template_string(HTML_TEMPLATE)
 
 
-# API endpoint
-@app.route("/api/places", methods=["GET", "POST"])
-def api_places():
-    city = request.args.get("city")
-    category = request.args.get("category", "tourism.attraction")
-
-    if not city and request.is_json:
-        city = request.json.get("city")
-        category = request.json.get("category", "tourism.attraction")
+@app.route('/search', methods=['POST'])
+def search():
+    payload = request.get_json() or request.form
+    city = payload.get('city')
+    category = payload.get('category') or 'tourism.attraction'
 
     if not city:
-        city = "Mumbai"
+        return jsonify([])
 
-    spots = fetch_city_data_live(city, category)
-
-    return jsonify({
-        "city": city,
-        "category": category,
-        "language": "en",
-        "spots": spots
-    })
+    results = fetch_city_data_live(city, category)
+    return jsonify(results)
 
 
-if __name__ == "__main__":
-    app.run(debug=True, port=5000)
+if __name__ == '__main__':
+    app.run(debug=True, port=int(os.environ.get('PORT', 5000)))
